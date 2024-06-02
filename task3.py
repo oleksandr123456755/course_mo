@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, minimize_scalar
 import time
 start_time = time.time()
 
@@ -24,28 +24,13 @@ def is_feasible(x, constraints):
 
 # Параметри методу
 num_iterations = 1000  # Кількість ітерацій
-sample_size = 50  # Розмір вибірки на кожній ітерації
 search_range = [-5, 5]  # Діапазон пошуку
 dimension = 2  # Розмірність простору
 
-# Види допустимої області
-# Випукла область
-constraints_convex = [{'type': 'ineq', 'fun': lambda x: 5 - (x[0] + x[1])},
-                      {'type': 'ineq', 'fun': lambda x: x[0] - 0.5},
-                      {'type': 'ineq', 'fun': lambda x: x[1] - 0.5}]
-
-# Невипукла область
-constraints_nonconvex = [{'type': 'ineq', 'fun': lambda x: np.sin(x[0]) + np.cos(x[1]) - 0.5},
-                         {'type': 'ineq', 'fun': lambda x: x[0] - 1.5},
-                         {'type': 'ineq', 'fun': lambda x: x[1] - 1.5}]
-
-# Лінійні обмеження
+# Види допустимої області (лінійні обмеження)
 constraints_linear = [{'type': 'ineq', 'fun': lambda x: x[0] + x[1] - 1},
                       {'type': 'ineq', 'fun': lambda x: 1.5 - x[0]},
                       {'type': 'ineq', 'fun': lambda x: 1.5 - x[1]}]
-
-# Метод одновимірного пошуку
-method1D = 'Powell'  # 'Powell' або 'Golden'
 
 # Точність метода одновимірного пошуку
 tol1D = 1e-3
@@ -53,16 +38,16 @@ tol1D = 1e-3
 # Значення параметру в алгоритмі Свена
 sven_param = 1e-6
 
-# Функція для виконання оптимізації з різними обмеженнями
-def optimize_with_constraints(constraints, description):
-    print(f"\nRRS для умовної оптимізації ({description}):")
+# Функція для виконання оптимізації з методом ДСК-Пауелла
+def optimize_with_powell():
+    print("\nRRS для умовної оптимізації (ДСК-Пауелла):")
     best_solution = None
     best_value = float('inf')
     
     for iteration in range(num_iterations):
         sample = generate_random_point(dimension, search_range)
-        if is_feasible(sample, constraints):
-            result = minimize(rosenbrock, sample, method=method1D, tol=tol1D, options={'xtol': sven_param})
+        if is_feasible(sample, constraints_linear):
+            result = minimize(rosenbrock, sample, method='Powell', tol=tol1D, options={'xtol': sven_param})
             value = result.fun
             if value < best_value:
                 best_value = value
@@ -74,10 +59,33 @@ def optimize_with_constraints(constraints, description):
     else:
         print("Не вдалося знайти допустиме рішення.")
 
-# Запуск оптимізації для різних видів допустимої області
-optimize_with_constraints(constraints_convex, "випукла область")
-optimize_with_constraints(constraints_nonconvex, "невипукла область")
-optimize_with_constraints(constraints_linear, "лінійні обмеження")
+# Функція для виконання оптимізації з методом золотого перетину
+def optimize_with_golden():
+    print("\nRRS для умовної оптимізації (Золотого перетину):")
+    best_solution = None
+    best_value = float('inf')
+    
+    for iteration in range(num_iterations):
+        sample = generate_random_point(dimension, search_range)
+        if is_feasible(sample, constraints_linear):
+            def objective_1d(alpha):
+                return rosenbrock(sample + alpha * np.ones(dimension))
+            
+            result = minimize_scalar(objective_1d, method='golden', tol=tol1D, options={'xtol': sven_param})
+            value = result.fun
+            if value < best_value:
+                best_value = value
+                best_solution = sample + result.x * np.ones(dimension)
+    
+    if best_solution is not None:
+        print(f"Найкраще знайдене рішення: {best_solution}")
+        print(f"Значення функції у цій точці: {best_value}")
+    else:
+        print("Не вдалося знайти допустиме рішення.")
+
+# Запуск оптимізації для різних методів одновимірного пошуку
+optimize_with_powell()
+optimize_with_golden()
 print(f"Кількість обчислення функції: {rosenbrock.counter}")
 end_time = time.time()
 
